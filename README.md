@@ -46,6 +46,21 @@ xlwings_venv\Scripts\Activate.ps1 porque la ejecución de scripts está deshabil
 Set-ExecutionPolicy Unrestricted
 ```
 
+## PySide6 y Qt
+Qt => Cross platform, a single code base, you just recompile for Linux, Windows or MAC
+
+PySide6 => Qt for Python (Belongs to the official Qt)
+
+PyQt => For commercial applications, it needs a separate license apart from Qt
+
+**API**
+
+Qt Widgets => Desktop applications
+QML => Embedded applications in Mobile Devices, Android
+
+Course with QT Widget
+
+
 ## Referencias
 [Sintaxis básica de redacción y formato](https://docs.github.com/es/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
 
