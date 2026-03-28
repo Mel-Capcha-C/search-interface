@@ -19,9 +19,37 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QListWidget,
     QComboBox,
+    QTableView,
+    QHeaderView,
 )
-from PySide6.QtCore import QSize
-from PySide6.QtGui import QAction, QIcon, QPixmap
+from PySide6.QtCore import (
+    Qt,
+    QAbstractTableModel,
+    QSize,
+    QModelIndex,
+    QSortFilterProxyModel,
+)
+from PySide6.QtGui import QAction, QIcon, QPixmap, QColor, QFont, QPalette
+import pandas as pd
+import sys
+
+sys.path.insert(0, "C:\\Users\\PC\\Data\\Documents\\git\\search-interface\\config")
+from product_config import config
+
+CARD = "#F1B8B8"  # Card / panel background
+# Human-friendly header names for the table
+HEADER_LABELS = {
+    "Código": "Código",
+    "Código Sistema": "Cód. Sistema",
+    "Conexión": "Conexión",
+    "Tipo Velocidad": "Tipo Velocidad",
+    "Potencia": "Potencia (W)",
+    "Ratio": "Ratio",
+    "Stock Total": "Stock",
+    "Descripción\nNueva": "Descripción",
+}
+
+ACCENT_L = "#FF5858"  # Light blue bg
 
 
 class rockWidget(QWidget):
@@ -44,6 +72,252 @@ class rockWidget(QWidget):
 
     def button2_clicked(self):
         print("Button 2 clicked!")
+
+
+class DataFrameModel(QAbstractTableModel):
+    """Read-only Qt model backed by a pandas DataFrame."""
+
+    def __init__(self, df: pd.DataFrame, parent=None):
+        super().__init__(parent)
+        self._df = df.reset_index(drop=True)
+
+    def update(self, df: pd.DataFrame):
+        self.beginResetModel()
+        self._df = df.reset_index(drop=True)
+        self.endResetModel()
+
+    # ── required overrides ──────────────────────────────────────────────────
+    def rowCount(self, parent=QModelIndex()):
+        return len(self._df)
+
+    def columnCount(self, parent=QModelIndex()):
+        return len(self._df.columns)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return None
+
+        value = self._df.iloc[index.row(), index.column()]
+
+        if role == Qt.DisplayRole:
+            if pd.isna(value):
+                return "—"
+            # Format Ratio as "X:1"
+            col = self._df.columns[index.column()]
+            if col == "Ratio":
+                return f"{int(value)}:1"
+            if col == "Potencia":
+                return f"{int(value)} W"
+            return str(value)
+
+        if role == Qt.TextAlignmentRole:
+            col = self._df.columns[index.column()]
+            if col in ("Potencia", "Ratio", "Stock Total"):
+                return int(Qt.AlignCenter)
+            return int(Qt.AlignVCenter | Qt.AlignLeft)
+
+        if role == Qt.BackgroundRole:
+            if index.row() % 2 == 0:
+                return QColor(CARD)
+            return QColor("#F1F5F9")
+
+        return None
+
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if role == Qt.DisplayRole:
+            if orientation == Qt.Horizontal:
+                col = self._df.columns[section]
+                return HEADER_LABELS.get(col, col)
+            return str(section + 1)
+
+        if role == Qt.FontRole and orientation == Qt.Horizontal:
+            f = QFont()
+            f.setBold(True)
+            return f
+
+        if role == Qt.BackgroundRole and orientation == Qt.Horizontal:
+            return QColor(ACCENT_L)
+
+        return None
+
+
+class RGMainWindow(QMainWindow):
+    def __init__(self, app):
+        super().__init__()
+        self.setWindowTitle("RG Interface")
+        self.app = app  # Declare an app member
+        self._load_data()
+        self._build_ui()
+
+    def _load_data(self):
+        excel_file_path = "C:/Users/PC/Data/Documents/Chamba/WESMOTOR/Reportes/Stock/Microrreductores.xlsx"
+
+        self.df = pd.read_excel(excel_file_path, sheet_name="Microrreductores")
+        self.df.to_csv("Microrreductores")
+
+        self.features = config["Microrreductor"]["features"]
+        print(self.features)
+
+        for feature in self.features:
+            if feature not in self.df.columns:
+                raise ValueError(
+                    f"Column '{feature}' not found in Excel. Check config features or Excel columns!"
+                )
+
+    def _build_ui(self):
+        # Menubar and menus
+        self.ly_main = QVBoxLayout()
+        self.wg_central = QWidget()
+        self.wg_central.setLayout(self.ly_main)
+        self.setCentralWidget(self.wg_central)
+
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("File")
+        help_menu = menu_bar.addMenu("Help")
+
+        quit_action = file_menu.addAction("Quit")
+        quit_action.triggered.connect(self.quit)
+
+        lb_title = QLabel("Búsqueda Productos")
+        lb_title.setStyleSheet("font-size: 20px; font-weight: bold")
+        lb_logo = QLabel()
+        lb_logo.setPixmap(QPixmap("Images/logo_R_G_gray.jpg").scaledToHeight(50))
+        lb_logo.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        ly_title = QHBoxLayout()
+        wg_title = QWidget()
+        wg_title.setLayout(ly_title)
+        ly_title.addWidget(lb_title, 2)
+        ly_title.addWidget(lb_logo, 1)
+        # Nomenclature:
+        # lb => Label
+        # cb => ComboBox
+        # wg => Widget
+        # ly => Layout
+        # pb => PushButton
+
+        # Label and combo box for products
+        lb_select_product = QLabel("Seleccione Producto:")
+        lb_select_product.setStyleSheet(
+            "background-color: #E03232; color: white; padding: 5px;"
+        )
+        lb_select_product.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        cb_select_product = QComboBox(self)
+        cb_select_product.addItems(config.keys())
+        cb_select_product.setCurrentIndex(1)
+        cb_select_product.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        # cb_productos.setStyleSheet("QComboBox::drop-down { background-color: red; }")
+        cb_select_product.currentTextChanged.connect(self.current_product_changed)
+
+        wg_select_product = QWidget()
+        ly_select_product = QHBoxLayout()
+        ly_select_product.addWidget(lb_select_product)
+        ly_select_product.addWidget(cb_select_product)
+        wg_select_product.setLayout(ly_select_product)
+
+        # ComboBox Features (Filter Panel)
+        self.wg_select_features = QWidget()
+        self.ly_select_features = QVBoxLayout()
+        self.wg_select_features.setLayout(self.ly_select_features)
+        self.wg_select_features.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Expanding
+        )
+
+        self.cb_select_features = {}
+
+        # ── Results table ──────────────────────────────────────────────────
+        self.model = DataFrameModel(self.df[self.features])
+        self.table = QTableView()
+        self.table.setModel(self.model)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.horizontalHeader().setHighlightSections(False)
+        self.table.verticalHeader().setDefaultSectionSize(28)
+        self.table.setSelectionBehavior(QTableView.SelectRows)
+        self.table.setEditTriggers(QTableView.NoEditTriggers)
+        self.table.setAlternatingRowColors(False)  # handled in model
+        self.table.setSortingEnabled(True)
+        self.table.setShowGrid(False)
+        self.table.verticalHeader().setVisible(False)
+
+        # Create Code Button
+        pb_create_code = QPushButton("Create code")
+        pb_create_code.clicked.connect(self.create_code)
+
+        # Layout
+        self.ly_main.addWidget(wg_title)
+        self.ly_main.addWidget(wg_select_product)
+        self.ly_main.addWidget(self.wg_select_features)
+        self.ly_main.addWidget(self.table)
+        self.ly_main.addWidget(pb_create_code)
+        # Tab Widget
+        # self.tab_widget = QTabWidget()
+        # self.tab_widget.addTab(central_widget, "Code Generator")
+        # self.setCentralWidget(self.tab_widget)
+
+    def quit(self):
+        self.app.quit()
+
+    def create_code(self):
+        print("Creating code for selected product...")
+
+    def current_product_changed(self, text):
+        product = text
+        config_producto = config[product]
+
+        print("Creating Combo Boxes")
+        # Crear nuevos campos
+
+        # Clear previous layout
+
+        for ii in reversed(range(self.ly_select_features.count())):
+            # If this item manages a QWidget , returns that widget. Otherwise, None is returned.
+            wg_single_feature = self.ly_select_features.itemAt(ii).widget()
+            if wg_single_feature:
+                wg_single_feature.deleteLater()
+
+        self.cb_select_features.clear()
+
+        for features in config_producto["features"]:
+            wg_single_feature = QWidget()
+            ly_single_feature = QHBoxLayout()
+            wg_single_feature.setLayout(ly_single_feature)
+
+            lb_single_feature = QLabel(features)
+
+            cb_single_feature = QComboBox()
+
+            ly_single_feature.addWidget(lb_single_feature)
+            ly_single_feature.addWidget(cb_single_feature)
+
+            self.ly_select_features.addWidget(wg_single_feature)
+            self.cb_select_features[features] = cb_single_feature
+            # self.central_widget.setLayout(self.main_layout)
+
+        # Inicializar campos
+        self.initialize_features(product)
+
+    def initialize_features(self, product):
+        data = config[product]["data"]  # raíz
+        features = config[product]["features"]
+
+        for campo in data.keys():
+            print(f"Campo, {campo}")
+
+            # valor = self.combos[campo].currentText()
+
+            # if not valor:
+            #     break
+
+            # if valor in data:
+            #     data = data[valor]
+            # else:
+            #     break
+
+        for feature in features:
+            print(f"{feature}: ", self.cb_select_features[feature])
+        # return data
 
 
 class rockMainWindow(QMainWindow):
