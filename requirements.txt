@@ -1,2 +1,3 @@
-xlwings
 pyside6
+pandas
+openpyxl
