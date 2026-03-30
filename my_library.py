@@ -286,11 +286,13 @@ class rockMainWindow(QMainWindow):
         cb_button_widget = QWidget()
 
         cb_button_current_value = QPushButton("Current value")
-        # cb_button_current_value.clicked.connect(self.cb_current_value)
+        cb_button_current_value.clicked.connect(self.cb_current_value)
+
         cb_button_set_current = QPushButton("Set value")
-        # cb_button_set_current.clicked.connect(self.cb_set_current)
+        cb_button_set_current.clicked.connect(self.cb_set_current)
+
         cb_button_get_values = QPushButton("Get values")
-        # cb_button_get_values.clicked.connect(self.cb_get_values)
+        cb_button_get_values.clicked.connect(self.cb_get_values)
 
         cb_button_layout = QHBoxLayout()
         cb_button_layout.addWidget(cb_button_current_value)
@@ -450,3 +452,20 @@ class rockMainWindow(QMainWindow):
         selected_items = self.list_widget.selectedItems()
         selected_texts = [item.text() for item in selected_items]
         print("Selected items:", selected_texts)
+
+    def cb_current_value(self):
+        current_value = self.combo_box.currentText()
+        print(
+            "Current combo box value:",
+            current_value,
+            "Index:",
+            self.combo_box.currentIndex(),
+        )
+
+    def cb_set_current(self):
+        self.combo_box.setCurrentIndex(2)  # Set to "Mars"
+
+    def cb_get_values(self):
+        count = self.combo_box.count()
+        values = [self.combo_box.itemText(i) for i in range(count)]
+        print("Combo box values:", values)
