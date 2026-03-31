@@ -33,10 +33,23 @@ from PySide6.QtGui import QAction, QIcon, QPixmap, QColor, QFont, QPalette
 import pandas as pd
 import sys
 
-sys.path.insert(0, "C:\\Users\\PC\\Data\\Documents\\git\\search-interface\\config")
+# sys.path.insert(0, "C:\\Users\\PC\\Data\\Documents\\git\\search-interface\\config")
+sys.path.insert(
+    0, "C:\\Users\\Mel_C\\Data\\Documents\\git\\Mel-Capcha-C\\search-interface\\config"
+)
 from product_config import config
 
-CARD = "#F1B8B8"  # Card / panel background
+ALL = "(Todos)"
+
+# QAbstractTableModel constants
+# BG_ODD = "#F1B8B8"  # BackgroundRole color for odd rows
+# BG_EVEN = "#F1F5F9"  # BackgroundRole color for even rows
+# BG_HEADER = "#FF5858"  # Light blue bg
+
+BG_ODD = "#43484A"  # BackgroundRole color for odd rows
+BG_EVEN = "#363839"  # BackgroundRole color for even rows
+BG_HEADER = "#570B3F"  # Light blue bg
+
 # Human-friendly header names for the table
 HEADER_LABELS = {
     "Código": "Código",
@@ -48,8 +61,6 @@ HEADER_LABELS = {
     "Stock Total": "Stock",
     "Descripción\nNueva": "Descripción",
 }
-
-ACCENT_L = "#FF5858"  # Light blue bg
 
 
 class rockWidget(QWidget):
@@ -118,8 +129,8 @@ class DataFrameModel(QAbstractTableModel):
 
         if role == Qt.BackgroundRole:
             if index.row() % 2 == 0:
-                return QColor(CARD)
-            return QColor("#F1F5F9")
+                return QColor(BG_EVEN)
+            return QColor(BG_ODD)
 
         return None
 
@@ -136,9 +147,22 @@ class DataFrameModel(QAbstractTableModel):
             return f
 
         if role == Qt.BackgroundRole and orientation == Qt.Horizontal:
-            return QColor(ACCENT_L)
+            return QColor(BG_HEADER)
 
         return None
+
+    # https://doc.qt.io/qtforpython-6/PySide6/QtCore/QAbstractItemModel.html#PySide6.QtCore.QAbstractItemModel.dataChanged
+    """Methods that make the table editable
+    def setData(self, index, value, /, role=...):
+        if role == Qt.EditRole:
+            self._df.iloc[index.row(), index.column()] = value
+            self.dataChanged.emit(index, index)
+            return True
+        return False
+
+    def flags(self, index):
+        return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+    """
 
 
 class RGMainWindow(QMainWindow):
@@ -150,10 +174,10 @@ class RGMainWindow(QMainWindow):
         self._build_ui()
 
     def _load_data(self):
-        excel_file_path = "C:/Users/PC/Data/Documents/Chamba/WESMOTOR/Reportes/Stock/Microrreductores.xlsx"
-
+        # excel_file_path = "C:/Users/PC/Data/Documents/Chamba/WESMOTOR/Reportes/Stock/Microrreductores.xlsx"
+        excel_file_path = "C:/Users/Mel_C/Data/Documents/Chamba/WESMOTOR/Reportes/Microrreductores.xlsx"
         self.df = pd.read_excel(excel_file_path, sheet_name="Microrreductores")
-        self.df.to_csv("Microrreductores")
+        # self.df.to_csv("Microrreductores")
 
         self.features = config["Microrreductor"]["features"]
         print(self.features)
@@ -212,6 +236,7 @@ class RGMainWindow(QMainWindow):
         cb_select_product.currentTextChanged.connect(self.current_product_changed)
 
         wg_select_product = QWidget()
+        wg_select_product.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         ly_select_product = QHBoxLayout()
         ly_select_product.addWidget(lb_select_product)
         ly_select_product.addWidget(cb_select_product)
@@ -221,9 +246,7 @@ class RGMainWindow(QMainWindow):
         self.wg_select_features = QWidget()
         self.ly_select_features = QVBoxLayout()
         self.wg_select_features.setLayout(self.ly_select_features)
-        self.wg_select_features.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Expanding
-        )
+        self.wg_select_features.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.cb_select_features = {}
 
@@ -231,15 +254,34 @@ class RGMainWindow(QMainWindow):
         self.model = DataFrameModel(self.df[self.features])
         self.table = QTableView()
         self.table.setModel(self.model)
+        # https://doc.qt.io/qtforpython-6/PySide6/QtWidgets/QHeaderView.html#PySide6.QtWidgets.QHeaderView.ResizeMode
+        # QHeaderView.ResizeMode.Interactive
+        # QHeaderView.ResizeMode.Fixed
+        # QHeaderView.ResizeMode.Stretch
+        # QHeaderView.ResizeMode.ResizeToContents
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.table.horizontalHeader().setHighlightSections(False)
-        self.table.verticalHeader().setDefaultSectionSize(28)
-        self.table.setSelectionBehavior(QTableView.SelectRows)
-        self.table.setEditTriggers(QTableView.NoEditTriggers)
-        self.table.setAlternatingRowColors(False)  # handled in model
+        self.table.setStyleSheet("""
+            QHeaderView::section:checked {
+                background-color: "#8A2A71";
+            }
+            """)
+
+        # This property holds whether the sections containing selected items are highlighted. By default, this property is false.
+        self.table.horizontalHeader().setHighlightSections(True)
+        # https://doc.qt.io/qtforpython-6/PySide6/QtWidgets/QAbstractItemView.html#PySide6.QtWidgets.QAbstractItemView.SelectionBehavior
+        self.table.setSelectionBehavior(QTableView.SelectionBehavior.SelectItems)
+        # https://doc.qt.io/qtforpython-6/PySide6/QtWidgets/QAbstractItemView.html#PySide6.QtWidgets.QAbstractItemView.EditTrigger
+        # property editTriggers: This property holds which actions will initiate item editing.
+
+        # self.table.setEditTriggers(QTableView.EditTrigger.DoubleClicked)
+        self.table.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
+
+        self.table.setAlternatingRowColors(False)  # Handled in QAbstractTableModel
         self.table.setSortingEnabled(True)
         self.table.setShowGrid(False)
-        self.table.verticalHeader().setVisible(False)
+
+        self.table.verticalHeader().setDefaultSectionSize(60)
+        self.table.verticalHeader().setVisible(True)
 
         # Create Code Button
         pb_create_code = QPushButton("Create code")
@@ -255,6 +297,122 @@ class RGMainWindow(QMainWindow):
         # self.tab_widget = QTabWidget()
         # self.tab_widget.addTab(central_widget, "Code Generator")
         # self.setCentralWidget(self.tab_widget)
+
+    # ── Population helpers ────────────────────────────────────────────────
+    def _populate_conexion(self):
+        self.cb_select_features["Conexión"].blockSignals(True)
+        self.cb_select_features["Conexión"].clear()
+        self.cb_select_features["Conexión"].addItem(ALL)
+        for val in sorted(self.df["Conexión"].dropna().unique()):
+            self.cb_select_features["Conexión"].addItem(str(val))
+        self.cb_select_features["Conexión"].blockSignals(False)
+
+    def _populate_combo(self, combo: QComboBox, series: pd.Series, fmt=str):
+        """Refill a combo while preserving the current selection if possible."""
+        current = combo.currentText()
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem(ALL)
+        for val in sorted(series.dropna().unique()):
+            combo.addItem(fmt(val))
+        idx = combo.findText(current)
+        combo.setCurrentIndex(idx if idx >= 0 else 0)
+        combo.blockSignals(False)
+
+    def _fmt_ratio(self, val):
+        try:
+            return f"{int(float(val))}:1"
+        except Exception:
+            return str(val)
+
+    def _fmt_potencia(self, val):
+        try:
+            return f"{int(float(val))} W"
+        except Exception:
+            return str(val)
+
+    def _on_conexion_changed(self):
+        conexion = self.cb_select_features["Conexión"].currentText()
+        is_mono = conexion == "Monofásico"
+
+        # Show/hide Tipo Velocidad depending on Conexión
+        self.cb_select_features["Tipo Velocidad"].setVisible(is_mono or conexion == ALL)
+
+        if not (is_mono or conexion == ALL):
+            self.cb_select_features["Tipo Velocidad"].blockSignals(True)
+            self.cb_select_features["Tipo Velocidad"].setCurrentIndex(0)
+            self.cb_select_features["Tipo Velocidad"].blockSignals(False)
+
+        self._apply_filters()
+
+    def _apply_filters(self):
+        df = self.df.copy()
+
+        # 1. Conexión
+        conexion = self.cb_select_features["Conexión"].currentText()
+        if conexion != ALL:
+            df = df[df["Conexión"] == conexion]
+
+        # 2. Tipo Velocidad (only for Monofásico or ALL)
+        tipo_vel = self.cb_select_features["Tipo Velocidad"].currentText()
+        if tipo_vel != ALL and self.cb_select_features["Tipo Velocidad"].isVisible():
+            df = df[df["Tipo Velocidad"] == tipo_vel]
+
+        # Re-populate downstream combos based on current filtered pool
+        self._populate_combo(
+            self.cb_select_features["Tipo Velocidad"],
+            df["Tipo Velocidad"]
+            if conexion in (ALL, "Monofásico")
+            else pd.Series(dtype=str),
+        )
+        # self._populate_combo(
+        #     self.cb_select_features["Potencia"],
+        #     df["Potencia"],
+        #     self._fmt_potencia,
+        # )
+        # self._populate_combo(
+        #     self.cb_select_features["Ratio"], df["Ratio"], self._fmt_ratio
+        # )
+
+        # 3. Potencia
+        # potencia_txt = self.cb_select_features["Potencia"].currentText()
+        # if potencia_txt != ALL:
+        #     try:
+        #         potencia_val = int(potencia_txt.replace(" W", "").strip())
+        #         df = df[df["Potencia"] == potencia_val]
+        #     except ValueError:
+        #         pass
+
+        # # 4. Ratio
+        # ratio_txt = self.cb_select_features["Ratio"].currentText()
+        # if ratio_txt != ALL:
+        #     try:
+        #         ratio_val = float(ratio_txt.replace(":1", "").strip())
+        #         df = df[df["Ratio"] == ratio_val]
+        #     except ValueError:
+        #         pass
+
+        # Update table
+        self.model.update(df[self.features])
+        # total = len(self.df_full)
+        # shown = len(df)
+        # self.status.showMessage(
+        #     f"Mostrando {shown} de {total} productos   •   "
+        #     f"{'Todos los filtros activos' if shown < total else 'Sin filtros aplicados'}"
+        # )
+
+    def _reset_filters(self):
+        for combo in (
+            self.cb_conexion,
+            self.cb_tipo_vel,
+            self.cb_potencia,
+            self.cb_ratio,
+        ):
+            combo.blockSignals(True)
+            combo.setCurrentIndex(0)
+            combo.blockSignals(False)
+        self.cb_tipo_vel_widget.setVisible(True)
+        self._apply_filters()
 
     def quit(self):
         self.app.quit()
@@ -296,7 +454,10 @@ class RGMainWindow(QMainWindow):
             # self.central_widget.setLayout(self.main_layout)
 
         # Inicializar campos
-        self.initialize_features(product)
+        self.cb_select_features["Conexión"].currentIndexChanged.connect(
+            self._on_conexion_changed
+        )
+        self._populate_conexion()
 
     def initialize_features(self, product):
         data = config[product]["data"]  # raíz
