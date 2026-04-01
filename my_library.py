@@ -79,20 +79,23 @@ class DataFrameModel(QAbstractTableModel):
 
     def __init__(self, df: pd.DataFrame, parent=None):
         super().__init__(parent)
-        self._df = df.reset_index(drop=True)
+        self._df = df.reset_index(
+            drop=True
+        )  # Reset a custom index like ["Student 1", "Student 2", ...] to the default integer index.
 
     def update(self, df: pd.DataFrame):
         self.beginResetModel()
         self._df = df.reset_index(drop=True)
         self.endResetModel()
 
-    # ── required overrides ──────────────────────────────────────────────────
+    # Required functions for QAbstractTableModel subclass
     def rowCount(self, parent=QModelIndex()):
         return len(self._df)
 
     def columnCount(self, parent=QModelIndex()):
         return len(self._df.columns)
 
+    # Qt.DisplayRole is an enum value that tells the data method to return the string to be displayed in the table cell.
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
