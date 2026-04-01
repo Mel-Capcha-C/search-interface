@@ -352,46 +352,52 @@ class RGMainWindow(QMainWindow):
         conexion = self.cb_select_features["Conexión"].currentText()
         if conexion != ALL:
             df = df[df["Conexión"] == conexion]
-
-        # 2. Tipo Velocidad (only for Monofásico or ALL)
-        tipo_vel = self.cb_select_features["Tipo Velocidad"].currentText()
-        if tipo_vel != ALL and self.cb_select_features["Tipo Velocidad"].isVisible():
-            df = df[df["Tipo Velocidad"] == tipo_vel]
-
-        # Re-populate downstream combos based on current filtered pool
+  
         self._populate_combo(
             self.cb_select_features["Tipo Velocidad"],
             df["Tipo Velocidad"]
             if conexion in (ALL, "Monofásico")
             else pd.Series(dtype=str),
         )
-        # self._populate_combo(
-        #     self.cb_select_features["Potencia"],
-        #     df["Potencia"],
-        #     self._fmt_potencia,
-        # )
-        # self._populate_combo(
-        #     self.cb_select_features["Ratio"], df["Ratio"], self._fmt_ratio
-        # )
+
+        # 2. Tipo Velocidad (only for Monofásico or ALL)
+        tipo_vel = self.cb_select_features["Tipo Velocidad"].currentText()
+
+        if tipo_vel != ALL and self.cb_select_features["Tipo Velocidad"].isVisible():
+            df = df[df["Tipo Velocidad"] == tipo_vel]
+
+        #Re-populate downstream combos based on current filtered pool
+        self._populate_combo(
+            self.cb_select_features["Potencia"],
+            df["Potencia"],
+            self._fmt_potencia,
+        )
+
+        self._populate_combo(
+            self.cb_select_features["Ratio"], df["Ratio"], self._fmt_ratio
+        )
 
         # 3. Potencia
-        # potencia_txt = self.cb_select_features["Potencia"].currentText()
-        # if potencia_txt != ALL:
-        #     try:
-        #         potencia_val = int(potencia_txt.replace(" W", "").strip())
-        #         df = df[df["Potencia"] == potencia_val]
-        #     except ValueError:
-        #         pass
+        potencia_txt = self.cb_select_features["Potencia"].currentText()
+        if potencia_txt != ALL:
+            try:
+                potencia_val = int(potencia_txt.replace(" W", "").strip())
+                df = df[df["Potencia"] == potencia_val]
+            except ValueError:
+                pass
 
         # # 4. Ratio
-        # ratio_txt = self.cb_select_features["Ratio"].currentText()
-        # if ratio_txt != ALL:
-        #     try:
-        #         ratio_val = float(ratio_txt.replace(":1", "").strip())
-        #         df = df[df["Ratio"] == ratio_val]
-        #     except ValueError:
-        #         pass
+        ratio_txt = self.cb_select_features["Ratio"].currentText()
+        if ratio_txt != ALL:
+            try:
+                ratio_val = float(ratio_txt.replace(":1", "").strip())
+                df = df[df["Ratio"] == ratio_val]
+            except ValueError:
+                pass
 
+        # Debug
+        print("Ah")
+        print(df)
         # Update table
         self.model.update(df[self.features])
         # total = len(self.df_full)
@@ -456,6 +462,15 @@ class RGMainWindow(QMainWindow):
         # Inicializar campos
         self.cb_select_features["Conexión"].currentIndexChanged.connect(
             self._on_conexion_changed
+        )
+        self.cb_select_features["Tipo Velocidad"].currentIndexChanged.connect(
+            self._apply_filters
+        )
+        self.cb_select_features["Potencia"].currentIndexChanged.connect(
+            self._apply_filters
+        )
+        self.cb_select_features["Ratio"].currentIndexChanged.connect(
+            self._apply_filters
         )
         self._populate_conexion()
 
